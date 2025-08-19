@@ -1,0 +1,43 @@
+{
+  "name": "visitors-log-app",
+  "version": "1.0.0",
+  "description": "An Electron app for managing visitor logs.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac",
+    "dist:all": "electron-builder -w -m"
+  },
+  "keywords": [],
+  "author": "Jamal Laqdiem",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parse": "^5.5.5"
+  },
+  "devDependencies": {
+    "electron": "^28.2.3",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.jamallaqdiem.visitorslog",
+    "productName": "Visitors Log App",
+    "nodeGypRebuild": false,
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "script.js",
+      "style.css"
+    ]
+  }
+}
