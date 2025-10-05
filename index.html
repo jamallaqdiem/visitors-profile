@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Log Security App</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SQL.js for in-browser SQLite database -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+
+    <!-- Loading Screen -->
+    <div id="loading" class="flex flex-col items-center justify-center min-h-screen text-gray-600">
+        <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="ml-4 mt-4">Loading application...</span>
+    </div>
+
+    <!-- Main Application UI -->
+    <div id="app" class="hidden w-full max-w-4xl p-8 bg-white rounded-xl shadow-2xl space-y-6">
+        <h1 class="text-3xl font-bold text-center text-gray-800">Catherine Booth House Visitors Log</h1>
+
+        <!-- Search Bar and Export Button -->
+        <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+            <input type="text" id="search" placeholder="Search by first or last name..." class="w-full md:flex-1 px-5 py-3 border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500 focus:border-transparent transition-all">
+            <button id="export-btn" class="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-lg">
+                Export to CSV
+            </button>
+        </div>
+        
+        <!-- Message Box for Feedback -->
+        <div id="messageBoxWrapper" class="fixed inset-x-0 top-6 hidden flex justify-center z-50">
+            <div id="messageBox" class="p-3 rounded-xl shadow-lg font-medium"></div>
+        </div>
+
+        <div id="searchResultsContainer" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+    <!-- Search results will be rendered here -->
+        </div>
+
+        <!-- Found Visitor Profile Box -->
+        <div id="foundProfileBox" class="hidden bg-gray-50 rounded-xl p-6 shadow-inner border border-gray-200">
+            <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                <div class="flex-shrink-0">
+                    <img id="profileImage" src="https://placehold.co/150x150/000000/FFFFFF?text=No+ID" 
+                    alt="Scanned ID" width="200" height="200">
+                </div>
+                <div class="flex-grow space-y-2 text-center sm:text-left">
+                    <div class="flex flex-col sm:flex-row items-center space-x-0 sm:space-x-4">
+                        <h2 id="profileName" class="text-2xl font-semibold text-gray-800"></h2>
+                        <span id="profileStatus" class="profile-status text-xs font-bold uppercase px-3 py-1 rounded-full mt-2 sm:mt-0"></span>
+                    </div>
+                    <p id="profileFlat" class="text-gray-600"></p>
+                    <p id="profilePhone" class="text-gray-600"></p>
+                    <p id="profileDob" class="text-gray-600"></p>
+                    <p id="profileNotes" class="text-gray-600 mt-2"></p>
+                </div>
+                <div class="flex-shrink-0 flex flex-col space-y-2 mt-4 sm:mt-0">
+                    <button id="profileBanButton" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl shadow hover:bg-red-700 transition-colors">
+                        Ban Visitor
+                    </button>
+                    <button id="profileUnbanButton" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl shadow hover:bg-blue-700 transition-colors">
+                        Unban Visitor
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- General Notes Section -->
+        <div id="generalNotesBox" class="hidden space-y-4">
+            <h2 class="text-xl font-semibold text-gray-800">General Notes</h2>
+            <textarea id="generalNotesInput" rows="4" class="w-full p-3 border-2 border-gray-300 rounded-xl shadow-inner focus:ring-4 focus:ring-purple-500 focus:border-transparent transition-all" placeholder="Add general notes about this visitor..."></textarea>
+            <div class="flex justify-end">
+                <button id="saveGeneralNotesButton" class="px-6 py-2 text-white bg-purple-600 rounded-xl shadow hover:bg-purple-700 transition-colors font-medium">
+                    Save Notes
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ban Modal -->
+    <div id="banModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full mx-4">
+            <h3 class="text-2xl font-bold mb-4 text-red-600">Ban Visitor</h3>
+            <p class="mb-4 text-gray-700">Please provide a reason.</p>
+            <div class="space-y-4">
+                <div>
+                    <label for="modalNotes" class="block text-sm font-medium text-gray-600">Reason for Ban</label>
+                    <textarea id="modalNotes" rows="3" class="mt-1 w-full p-3 rounded-md border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button id="modalCancelButton" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors">Cancel</button>
+                <button id="modalConfirmBanButton" class="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">Confirm Ban</button>
+            </div>
+        </div>
+    </div>
+    
+        <!-- Unban Modal (initially hidden) -->
+    <div id="unbanModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+        <div class="card p-8 max-w-sm w-full space-y-4 text-center">
+            <h3 class="text-2xl font-bold text-white">Confirm Unban</h3>
+            <p class="text-gray-400">Enter password to unban this visitor:</p>
+            <input type="password" id="unbanPasswordInput" class="w-full p-3 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Password">
+            <div class="flex gap-4">
+                <button id="unbanCancelButton" class="flex-grow p-3 rounded-md bg-gray-600 text-white font-semibold hover:bg-gray-700 transition-colors">Cancel</button>
+                <button id="unbanConfirmButton" class="flex-grow p-3 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors">Confirm Unban</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Your script.js file -->
+    <script src="./script.js"></script>
+</body>
+</html>
