@@ -23,7 +23,7 @@ Electron: For building the cross-platform desktop application.
 
 Node.js: The core runtime environment used in Electron's main process for file system access and other native tasks.
 
-SQLite: The lightweight relational database for local data storage, implemented in the browser using sql.js.
+CSV: using a csv local file to fetch data from it .
 
 HTML, CSS, tailwindcss & JavaScript: The foundation of the application's user interface.
 
