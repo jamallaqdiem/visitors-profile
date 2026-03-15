@@ -1,9 +1,5 @@
-// --- Imports ---
-// Electron modules for creating the app window, handling IPC, and file dialogs.
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-// Built-in Node.js modules for working with file and directory paths.
 const path = require('node:path');
-// Built-in Node.js module for file system operations.
 const fs = require('fs');
 
 // --- Global State Variable ---
@@ -24,9 +20,7 @@ function createWindow() {
             // Path to the preload script, which bridges the gap between the main
             // process and the renderer process (the web page).
             preload: path.join(__dirname, 'preload.js'),
-            // `nodeIntegration: false` and `contextIsolation: true` are essential
-            // security best practices to prevent the web page from accessing
-            // Node.js APIs directly.
+            // `nodeIntegration: false` and `contextIsolation: true` are essential for security.
             nodeIntegration: false,
             contextIsolation: true,
         },

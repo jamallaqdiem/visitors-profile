@@ -527,8 +527,7 @@ const initializeDb = async () => {
                 generalNotes TEXT
             );
         `);
-
-        // Fix for old database schemas - ensures all columns exist
+// ensures all columns exist
         try {
             db.exec("ALTER TABLE visitors ADD COLUMN phoneNumber TEXT;");
             console.log("Added 'phoneNumber' column to the visitors table.");

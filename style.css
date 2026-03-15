@@ -1,8 +1,6 @@
 body {
     font-family: 'Inter', sans-serif;
-    /* Sets the background to a soft, light gray */
     background-color: #f0f4f8; 
-    /* Centers content vertically and horizontally */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -12,17 +10,14 @@ body {
 
 .container {
     max-width: 800px;
-    /* Adds a subtle white background and rounded corners */
     background-color: #ffffff;
     border-radius: 12px; 
-    /* Adds a soft shadow for depth */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
     padding: 2rem;
     margin: 2rem;
 }
 
 .title {
-    /* Styles the main title of the app */
     color: #1e3a5f; 
     font-size: 2.5rem;
     font-weight: 700;
@@ -30,7 +25,6 @@ body {
     margin-bottom: 2rem;
 }
 
-/* Style for input fields and buttons */
 input[type="text"], input[type="file"] {
     border: 1px solid #d1d5db;
     border-radius: 8px;
@@ -41,7 +35,6 @@ input[type="text"], input[type="file"] {
 }
 
 button {
-    /* A bright, modern blue for a primary call to action */
     background-color: #3b82f6; 
     color: white;
     font-weight: 600;
@@ -56,7 +49,6 @@ button:hover {
     background-color: #2563eb;
 }
 
-/* Specific button styles */
 .btn-primary {
     background-color: #3b82f6;
 }
@@ -71,7 +63,7 @@ button:hover {
 
 .profile-pic {
     width: 300px;
-    height: 200px; /* Ensure height and width are the same for a square */
+    height: 200px; 
     border-radius: 0px !important;
     object-fit: cover;
     border: 2px solid #e5e7eb;
@@ -80,32 +72,25 @@ button:hover {
 
 .profile-status {
     font-weight: bold;
-            /* --- BEGIN MODIFIED STYLING --- */
-            /* Increased padding and font size for a more prominent look */
     padding: 0.5rem 1rem;
-    font-size: 1.125rem; /* Equivalent to Tailwind's text-lg */
-            /* --- END MODIFIED STYLING --- */
+    font-size: 1.125rem; 
     border-radius: 9999px;
     color: white;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
  }
 .profile-status.cleared {
-    background-color: #10B981; /* Green */
+    background-color: #10B981;
 }
 .profile-status.banned {
-    background-color: #EF4444; /* Red */
+    background-color: #EF4444; 
 }
 
-/*
- * This class positions the message box at the top of the page.
- * The very high z-index ensures it appears above the modal.
- */
 .message-box-container {
     position: fixed;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 9999;  /* Ensures it's on top of EVERYTHING */
+    z-index: 9999;  
     width: 90%;
     max-width: 500px;
     text-align: center;
