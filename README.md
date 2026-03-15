@@ -8,7 +8,7 @@ Jamal Laqdiem
 Features
 Secure Desktop Environment: Runs as a native application on Windows, macOS, and Linux, providing a fast and isolated user experience.
 
-Persistent Data Storage: Uses a client-side SQLite database to save visitor data locally, ensuring all information is retained between sessions.
+Persistent Data Storage: Using a local storage a csv file.
 
 Search Functionality: Quickly find visitor profiles using a responsive search bar.
 
@@ -23,7 +23,7 @@ Electron: For building the cross-platform desktop application.
 
 Node.js: The core runtime environment used in Electron's main process for file system access and other native tasks.
 
-SQLite: The lightweight relational database for local data storage, implemented in the browser using sql.js.
+CSV: using a csv local file to fetch data from it .
 
 HTML, CSS, tailwindcss & JavaScript: The foundation of the application's user interface.
 
@@ -38,7 +38,7 @@ You must have Node.js and npm installed on your machine.
 Installation
 Clone the repository to your local machine:
 
-git clone https://github.com/jemaljemy/visitors-profile/tree/create-electron
+git clone https://github.com/jamallaqdiem/visitors-profile/tree/create-electron
 
 Navigate to the project directory:
 
@@ -50,5 +50,6 @@ npm install
 
 Running the Application
 To start the application in development mode, run the following command:
+npm start
 
 npm start
