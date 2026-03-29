@@ -7,10 +7,11 @@
     "start": "electron .",
     "dist:win": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
     "dist:all": "electron-builder -w -m"
   },
   "keywords": [],
-  "author": "Jamal Laqdiem",
+  "author": "Jamal Laqdiem <jamal@example.com>",
   "license": "ISC",
   "dependencies": {
     "csv-parse": "^5.5.5"
@@ -29,10 +30,22 @@
     "mac": {
       "target": "dmg"
     },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "extraResources": [
+        "photos/**",
+        "visitors.csv"
+      ],
+      "category": "Utility"
+    },
     "directories": {
       "output": "dist"
     },
     "files": [
+      "logo.svg",
       "main.js",
       "preload.js",
       "index.html",
