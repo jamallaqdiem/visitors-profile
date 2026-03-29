@@ -1,34 +1,38 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol } = require("electron");
 const path = require("node:path");
 const fs = require("fs");
+app.disableHardwareAcceleration();
 
 // --- Global State Variable ---
-// Stores the path of the last opened CSV file. This is crucial for saving back
-// to the same file without asking the user to select it again.
 let lastUsedFilePath = null;
 
-// --- Window Creation ---
-/**
- * Creates the main Electron browser window.
- * It sets up the window's dimensions and its web preferences, including the preload script.
- */
+// 1. MUST register schemes before app is ready
+protocol.registerSchemesAsPrivileged([
+  { scheme: "vlog-img", privileges: { bypassCSP: true, stream: true } },
+]);
+
 function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1100, // Made a bit wider for better dev-tool viewing
+    height: 800,
     webPreferences: {
-      // Path to the preload script, which bridges the gap between the main
-      // process and the renderer process (the web page).
       preload: path.join(__dirname, "preload.js"),
-      // `nodeIntegration: false` and `contextIsolation: true` are essential for security.
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  // Loads the main HTML file into the window.
   win.loadFile("index.html");
 }
+
+// --- NEW: The Missing Link Handler ---
+// This tells the frontend where the CSV was opened from
+ipcMain.handle("get-file-dir", async () => {
+  if (lastUsedFilePath) {
+    return path.dirname(lastUsedFilePath);
+  }
+  return null;
+});
 
 // --- CSV Parsing and Stringify Helper Functions ---
 /**
@@ -202,21 +206,24 @@ ipcMain.handle("dialog:updateAndSaveCsvFile", async (event, updatedVisitor) => {
 // --- Application Lifecycle ---
 // This event is fired when the Electron app is ready to create browser windows.
 app.whenReady().then(() => {
+  // 2. Set up the protocol handler properly
+  protocol.registerFileProtocol("vlog-img", (request, callback) => {
+    const url = request.url.replace("vlog-img://", "");
+    try {
+      // decodeURIComponent is vital for Windows paths with spaces!
+      return callback(decodeURIComponent(url));
+    } catch (error) {
+      console.error("Protocol error:", error);
+    }
+  });
+
   createWindow();
 
-  // This event is common on macOS, where the app stays in the dock even after
-  // all windows are closed. This re-creates a window when the dock icon is clicked.
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-// Quits the application when all windows are closed, unless the platform is macOS
-// (where it's common for applications to remain running).
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });

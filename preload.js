@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // main process to be saved back to the CSV file.
   updateAndSaveCsvFile: (updatedVisitor) =>
     ipcRenderer.invoke("dialog:updateAndSaveCsvFile", updatedVisitor),
+  // Requests the system path for the 'photos' folder
+  getCSVDirectory: () => ipcRenderer.invoke("get-file-dir"),
 });

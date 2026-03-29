@@ -1,24 +1,54 @@
-// This file manages the client-side logic for the visitor log application.
-// It handles database initialization, UI updates, and interaction with the browser's
-// local storage, as well as communication with the main Electron process for file operations.
+/**
+ * Visitor Log Application - Client Side Logic
+ * Handles SQLite DB, UI updates, and Electron communication.
+ */
+
+/**
+ * @typedef {Object} ElectronAPI
+ * @property {Function} readCsvFile
+ * @property {Function} updateAndSaveCsvFile
+ * @property {Function} getCSVDirectory
+ */
 
 // --- Global State Variables ---
 let db = null;
 let visitorsList = [];
 let selectedVisitorId = null;
-const UNBAN_PASSWORD = "";
-const IMAGE_FOLDER = "photos";
 
-// --- Data Persistence Functions using sql.js ---
+let passwordInput = null;
+let togglePasswordButton = null;
+let eyeIcon = null;
 
-/**
- * Converts a SQLite query result object into a clean array of JavaScript objects.
- * This function makes the data from the SQLite database easier to work with by transforming
- * it from a raw query result into a standard array of objects.
- *
- * @param {Object[]} res - The result array from db.exec().
- * @returns {Object[]} An array of objects, where each object represents a row.
+const UNBAN_PASSWORD = "salvation_army2026";
+
+/** * IMPORTANT: This is updated dynamically once a CSV is selected
+ * to point to the 'photos' folder next to that CSV.
  */
+let IMAGE_FOLDER = "";
+
+// --- Path & Resource Setup ---
+
+const setupPaths = async () => {
+  try {
+    // 1. Get the directory where the CSV is located from the Main process
+    const baseDir = await window.electronAPI.getCSVDirectory();
+
+    if (baseDir) {
+      // 2. Point to the 'photos' folder using our custom protocol 'vlog-img://'
+      // This bypasses security blocks and handles Windows backslashes correctly.
+      IMAGE_FOLDER = `vlog-img://${baseDir}/photos`.replace(/\\/g, "/");
+      console.log("Image folder initialized at:", IMAGE_FOLDER);
+    } else {
+      console.warn("No CSV directory found yet. IMAGE_FOLDER not set.");
+    }
+  } catch (err) {
+    console.error("Could not retrieve resource path:", err);
+    IMAGE_FOLDER = "photos"; // Basic fallback
+  }
+};
+
+// --- Data Persistence Functions ---
+
 const sqlQueryToObjects = (res) => {
   if (!res || res.length === 0) return [];
   const columns = res[0].columns;
@@ -32,21 +62,12 @@ const sqlQueryToObjects = (res) => {
   });
 };
 
-/**
- * Loads all visitor data from the SQLite database into the global visitorsList array.
- * This is a core function for populating the application's in-memory data store from the database.
- */
 const loadVisitorsFromDb = async () => {
   const res = db.exec("SELECT * FROM visitors");
   visitorsList = sqlQueryToObjects(res);
   console.log("Visitors data loaded from SQLite:", visitorsList);
 };
 
-/**
- * Saves the current state of the SQLite database to the browser's local storage.
- * This is crucial for data persistence, ensuring that changes are saved and
- * available the next time the user opens the application.
- */
 const saveDbToLocalStorage = () => {
   const binaryArray = db.export();
   const buffer = new Uint8Array(binaryArray);
@@ -56,24 +77,10 @@ const saveDbToLocalStorage = () => {
 
 // --- Utility Functions ---
 
-/**
- * Checks if a visitor is currently banned.
- * This utility function provides a clear, boolean check for a visitor's status.
- *
- * @param {Object} visitor - The visitor object.
- * @returns {boolean} True if the visitor is banned, false otherwise.
- */
 const isVisitorBanned = (visitor) => {
   return visitor && visitor.isBanned === 1;
 };
 
-/**
- * Displays a temporary message box for user feedback.
- * This function is used to show success or error messages to the user in a standardized way.
- *
- * @param {string} message - The message to display.
- * @param {string} type - The type of message ('success' or 'error') to determine styling.
- */
 const showMessageBox = (message, type = "success") => {
   const messageBoxWrapper = document.getElementById("messageBoxWrapper");
   const messageBox = document.getElementById("messageBox");
@@ -96,17 +103,10 @@ const showMessageBox = (message, type = "success") => {
 
 // --- UI Rendering Functions ---
 
-/**
- * Renders the list of search results.
- * This function displays a list of all matching visitors for selection.
- *
- * @param {Array} visitors - The array of visitor objects to display.
- */
 const renderSearchResults = (visitors) => {
   const resultsContainer = document.getElementById("searchResultsContainer");
   const profileBox = document.getElementById("foundProfileBox");
 
-  // Clear previous results and profile box
   resultsContainer.innerHTML = "";
   profileBox.classList.add("hidden");
 
@@ -127,22 +127,15 @@ const renderSearchResults = (visitors) => {
     li.onclick = () => {
       selectedVisitorId = visitor.id;
       renderFoundProfile(visitor);
-      resultsContainer.classList.add("hidden"); // Hide results after selection
+      resultsContainer.classList.add("hidden");
     };
     ul.appendChild(li);
   });
 
   resultsContainer.appendChild(ul);
-  resultsContainer.classList.remove("hidden"); // Show the results container
+  resultsContainer.classList.remove("hidden");
 };
 
-/**
- * Displays a single visitor's detailed profile.
- * This function is responsible for dynamically populating the HTML elements of the profile box
- * with the selected visitor's data, including their status (banned/cleared).
- *
- * @param {Object} visitor - The visitor object.
- */
 const renderFoundProfile = (visitor) => {
   const profileBox = document.getElementById("foundProfileBox");
   const generalNotesBox = document.getElementById("generalNotesBox");
@@ -150,18 +143,23 @@ const renderFoundProfile = (visitor) => {
 
   if (profileBox && generalNotesBox) {
     if (visitor) {
-      console.log("Rendering visitor profile:", visitor);
-      const imagePath = visitor.scannedIdPicUrl
-        ? `${IMAGE_FOLDER}/${visitor.scannedIdPicUrl}`
+      // Logic for constructing the image path
+      const fileName = visitor.scannedIdPicUrl
+        ? visitor.scannedIdPicUrl.trim()
+        : "";
+
+      const imagePath = fileName
+        ? `${IMAGE_FOLDER}/${fileName}`
         : "https://placehold.co/400x250/000000/FFFFFF?text=No+ID";
+
+      console.log("Attempting to load image from:", imagePath);
 
       profileBox.classList.remove("hidden");
       document.getElementById("profileName").textContent =
         `${visitor.firstName} ${visitor.lastName}`;
-      document.getElementById("profileFlat").textContent =
-        visitor.flatNumber && visitor.flatNumber.length > 0
-          ? `Flat: ${visitor.flatNumber}`
-          : "Flat: N/A";
+      document.getElementById("profileFlat").textContent = visitor.flatNumber
+        ? `Flat: ${visitor.flatNumber}`
+        : "Flat: N/A";
       document.getElementById("profilePhone").textContent = visitor.phoneNumber
         ? `Phone: ${visitor.phoneNumber}`
         : "Phone: N/A";
@@ -170,10 +168,11 @@ const renderFoundProfile = (visitor) => {
         : "Date of Birth: N/A";
       document.getElementById("profileNotes").textContent =
         visitor.notes || "Notes: N/A";
+
+      // Update the profile image source
       document.getElementById("profileImage").src = imagePath;
 
       const isBanned = isVisitorBanned(visitor);
-
       if (isBanned) {
         statusSpan.textContent = "BANNED";
         statusSpan.className = "profile-status banned";
@@ -197,11 +196,8 @@ const renderFoundProfile = (visitor) => {
   }
 };
 
-/**
- * Opens the ban confirmation modal.
- *
- * @param {string} visitorId - The ID of the visitor to be banned.
- */
+// --- Modal Handlers ---
+
 const openBanModal = (visitorId) => {
   selectedVisitorId = visitorId;
   const visitorData = visitorsList.find((v) => v.id === visitorId);
@@ -209,37 +205,20 @@ const openBanModal = (visitorId) => {
   document.getElementById("banModal").classList.remove("hidden");
 };
 
-/**
- * Hides the ban confirmation modal.
- */
-const hideBanModal = () => {
+const hideBanModal = () =>
   document.getElementById("banModal").classList.add("hidden");
-};
 
-/**
- * Opens the unban confirmation modal.
- *
- * @param {string} visitorId - The ID of the visitor to be unbanned.
- */
 const openUnbanModal = (visitorId) => {
   selectedVisitorId = visitorId;
   document.getElementById("unbanModal").classList.remove("hidden");
-  document.getElementById("unbanPasswordInput").value = ""; // Clear previous password
+  document.getElementById("unbanPasswordInput").value = "";
 };
 
-/**
- * Hides the unban confirmation modal.
- */
-const hideUnbanModal = () => {
+const hideUnbanModal = () =>
   document.getElementById("unbanModal").classList.add("hidden");
-};
 
-// --- Event Handlers and SQLite Logic ---
+// --- Event Handlers ---
 
-/**
- * Updated search handler to find all matching visitors and handle full name search.
- * @param {Event} e - The input event from the search bar.
- */
 const handleSearch = (e) => {
   const searchTerm = e.target.value.toLowerCase().trim();
   const searchResultsContainer = document.getElementById(
@@ -248,379 +227,207 @@ const handleSearch = (e) => {
 
   if (searchTerm.length === 0) {
     selectedVisitorId = null;
-    renderFoundProfile(null); // Hide profile box
-    searchResultsContainer.classList.add("hidden"); // Hide results container
+    renderFoundProfile(null);
+    searchResultsContainer.classList.add("hidden");
     return;
   }
 
-  // Split the search term into parts by spaces
   const searchTerms = searchTerm.split(/\s+/).filter((term) => term.length > 0);
-
-  const foundVisitors = visitorsList.filter((visitor) => {
-    // Check if all search terms are present in either the first or last name
+  const foundVisitors = visitorsList.filter((v) => {
     return searchTerms.every(
       (term) =>
-        (visitor.firstName && visitor.firstName.toLowerCase().includes(term)) ||
-        (visitor.lastName && visitor.lastName.toLowerCase().includes(term)),
+        (v.firstName && v.firstName.toLowerCase().includes(term)) ||
+        (v.lastName && v.lastName.toLowerCase().includes(term)),
     );
   });
 
-  // If a perfect match is found, show that profile directly
   const exactMatch = foundVisitors.find(
     (v) =>
       `${v.firstName.toLowerCase()} ${v.lastName.toLowerCase()}` === searchTerm,
   );
+
   if (exactMatch) {
     selectedVisitorId = exactMatch.id;
     renderFoundProfile(exactMatch);
     searchResultsContainer.classList.add("hidden");
   } else {
-    // Otherwise, show all potential matches in a list
     renderSearchResults(foundVisitors);
-    renderFoundProfile(null); // Hide the single profile box
+    renderFoundProfile(null);
   }
 };
 
-/**
- * Updates a visitor's banned status and notes in the database.
- *
- * @param {string} visitorId - The ID of the visitor to update.
- * @param {Object} newStatus - An object containing the new status ({ isBanned: boolean, notes: string }).
- */
 const updateVisitorStatus = async (visitorId, newStatus) => {
   if (!visitorId) return;
   try {
     const isBanned = newStatus.isBanned ? 1 : 0;
     const notes = newStatus.notes || "";
-
     db.run("UPDATE visitors SET isBanned = ?, notes = ? WHERE id = ?", [
       isBanned,
       notes,
       visitorId,
     ]);
-
     saveDbToLocalStorage();
     await loadVisitorsFromDb();
     renderFoundProfile(visitorsList.find((v) => v.id === visitorId));
-
-    showMessageBox("Visitor status updated successfully!", "success");
+    showMessageBox("Status updated!", "success");
   } catch (error) {
-    console.error("Error updating visitor status in SQLite:", error);
-    showMessageBox("Failed to update visitor status.", "error");
+    showMessageBox("Update failed.", "error");
   }
 };
 
-/**
- * Updates a visitor's general notes in the database.
- *
- * @param {string} visitorId - The ID of the visitor to update.
- * @param {string} notes - The new general notes text.
- */
-const updateGeneralNotes = async (visitorId, notes) => {
-  if (!visitorId) {
-    showMessageBox("Please search for a visitor first.", "error");
-    return;
-  }
-  try {
-    db.run("UPDATE visitors SET generalNotes = ? WHERE id = ?", [
-      notes,
-      visitorId,
-    ]);
-
-    saveDbToLocalStorage();
-    await loadVisitorsFromDb();
-    renderFoundProfile(visitorsList.find((v) => v.id === visitorId));
-
-    showMessageBox("Notes saved successfully!", "success");
-  } catch (error) {
-    console.error("Error updating general notes in SQLite:", error);
-    showMessageBox("Failed to save notes.", "error");
-  }
-};
-
-/**
- * Handles the confirmation of a ban action.
- */
-const handleBanConfirm = () => {
-  if (!selectedVisitorId) return;
-  const notes = document.getElementById("modalNotes").value;
-  updateVisitorStatus(selectedVisitorId, { isBanned: true, notes });
-  hideBanModal();
-};
-
-/**
- * Handles the confirmation of an unban action.
- */
 const handleUnbanConfirm = async () => {
-  const passwordInput = document.getElementById("unbanPasswordInput");
-  const enteredPassword = passwordInput.value;
-  if (enteredPassword === UNBAN_PASSWORD) {
+  if (passwordInput.value === UNBAN_PASSWORD) {
     if (!selectedVisitorId) return;
+
     await updateVisitorStatus(selectedVisitorId, {
       isBanned: false,
       notes: "",
     });
     hideUnbanModal();
-    showMessageBox("Visitor has been unbanned.", "success");
+
+    // security check
+    passwordInput.setAttribute("type", "password");
+    eyeIcon.classList.remove("text-green-500");
+    showMessageBox("Visitor unbanned.", "success");
   } else {
     showMessageBox("Incorrect password.", "error");
     passwordInput.value = "";
   }
 };
 
-// --- CSV Import/Export Logic ---
+// --- CSV Logic ---
 
-/**
- * Parses a CSV string into an array of visitor objects.
- *
- * @param {string} csvText - The raw CSV data as a string.
- * @returns {Object[]} An array of visitor objects.
- */
 const parseCsv = (csvText) => {
   const lines = csvText.trim().split("\n");
-  const headers = lines[0].split(",").map((header) => header.trim());
-  const data = lines.slice(1).map((line) => {
-    const values = line.split(",").map((value) => value.trim());
+  const headers = lines[0].split(",").map((h) => h.trim());
+  return lines.slice(1).map((line) => {
+    const values = line.split(",").map((v) => v.trim());
     const visitor = {};
-    headers.forEach((header, index) => {
-      visitor[header] = values[index];
+    headers.forEach((h, index) => {
+      visitor[h === "visitorId" ? "id" : h] = values[index];
     });
     return visitor;
   });
-  return data;
 };
 
-/**
- * Converts a given array of visitor objects back into a CSV formatted string.
- *
- * @param {Object[]} visitorsToExport - An array of visitor objects to export.
- * @returns {string} The CSV data as a string.
- */
-const generateCsv = (visitorsToExport) => {
-  if (!visitorsToExport || visitorsToExport.length === 0) return "";
-  const headers = [
-    "id",
-    "firstName",
-    "lastName",
-    "flatNumber",
-    "phoneNumber",
-    "dateOfBirth",
-    "scannedIdPicUrl",
-    "isBanned",
-    "notes",
-    "generalNotes",
-  ];
-  const headerRow = headers.join(",");
-  const rows = visitorsToExport.map((visitor) => {
-    return headers
-      .map((header) => {
-        const value = visitor[header];
-        return `"${value === null || value === undefined ? "" : value.toString().replace(/"/g, '""')}"`;
-      })
-      .join(",");
-  });
-  return [headerRow, ...rows].join("\n");
-};
-
-/**
- * Handles the import of a CSV file.
- *
- * @param {string} csvData - The raw CSV data as a string.
- */
 const handleImport = async (csvData) => {
-  if (!csvData) {
-    return;
-  }
+  if (!csvData) return;
   const importedVisitors = parseCsv(csvData);
-  let importedCount = 0;
   try {
-    console.log("Parsed CSV Data:", importedVisitors);
     db.run("BEGIN TRANSACTION;");
-    for (const visitor of importedVisitors) {
-      if (!visitor.firstName || !visitor.lastName) {
-        console.error(
-          "Skipping a row due to missing firstName or lastName:",
-          visitor,
-        );
-        continue;
-      }
-      const visitorId = visitor.id || uuidv4();
-      const isBanned =
-        visitor.isBanned === "true" || visitor.isBanned === "1" ? 1 : 0;
-      const existingVisitor = db.exec("SELECT * FROM visitors WHERE id = ?", [
-        visitorId,
-      ]);
-
-      if (existingVisitor.length > 0) {
-        console.log(`Updating existing visitor with ID: ${visitorId}`);
-        db.run(
-          "UPDATE visitors SET firstName = ?, lastName = ?, flatNumber = ?, phoneNumber = ?, dateOfBirth = ?, scannedIdPicUrl = ?, isBanned = ?, notes = ? WHERE id = ?",
-          [
-            visitor.firstName,
-            visitor.lastName,
-            visitor.flatNumber,
-            visitor.phoneNumber,
-            visitor.dateOfBirth,
-            visitor.scannedIdPicUrl,
-            isBanned,
-            visitor.notes,
-            visitorId,
-          ],
-        );
-      } else {
-        console.log(`Inserting new visitor with ID: ${visitorId}`);
-        db.run(
-          "INSERT INTO visitors (id, firstName, lastName, flatNumber, phoneNumber, dateOfBirth, scannedIdPicUrl, isBanned, notes, generalNotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [
-            visitorId,
-            visitor.firstName,
-            visitor.lastName,
-            visitor.flatNumber,
-            visitor.phoneNumber,
-            visitor.dateOfBirth,
-            visitor.scannedIdPicUrl,
-            isBanned,
-            visitor.notes,
-            "",
-          ],
-        );
-      }
-      importedCount++;
+    for (const v of importedVisitors) {
+      if (!v.firstName || !v.lastName) continue;
+      const visitorId = v.id || uuidv4();
+      const isBanned = v.isBanned === "true" || v.isBanned === "1" ? 1 : 0;
+      db.run(
+        `INSERT OR REPLACE INTO visitors 
+        (id, firstName, lastName, flatNumber, phoneNumber, dateOfBirth, scannedIdPicUrl, isBanned, notes, generalNotes) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          visitorId,
+          v.firstName,
+          v.lastName,
+          v.flatNumber,
+          v.phoneNumber,
+          v.dateOfBirth,
+          v.scannedIdPicUrl,
+          isBanned,
+          v.notes,
+          v.generalNotes || "",
+        ],
+      );
     }
     db.run("COMMIT;");
     saveDbToLocalStorage();
     await loadVisitorsFromDb();
-    showMessageBox(
-      `Successfully imported ${importedCount} visitor(s).`,
-      "success",
-    );
   } catch (error) {
     db.run("ROLLBACK;");
-    console.error("Error during CSV import:", error);
-    showMessageBox("Failed to import data.", "error");
+    console.error("CSV Import Error:", error);
   }
 };
 
-/**
- * Handles the export to CSV button click.
- * It generates the CSV data and sends it to the main process for saving.
- */
+//handle export form db to csv
+
 const handleExport = async () => {
-  if (!selectedVisitorId) {
-    showMessageBox(
-      "Please search for and select a visitor to export.",
-      "error",
-    );
+  // 1. Get latest data from the DB
+  const res = db.exec("SELECT * FROM visitors");
+  const data = sqlQueryToObjects(res);
+
+  if (data.length === 0) {
+    showMessageBox("No data to export!", "error");
     return;
   }
 
-  // Find the single visitor object to export from the global list
-  const visitorToExport = visitorsList.find((v) => v.id === selectedVisitorId);
-
-  if (visitorToExport) {
-    // Create an updated object that includes the current notes from the UI.
-    const updatedVisitorData = {
-      id: visitorToExport.id,
-      firstName: visitorToExport.firstName,
-      lastName: visitorToExport.lastName,
-      flatNumber: visitorToExport.flatNumber,
-      phoneNumber: visitorToExport.phoneNumber,
-      dateOfBirth: visitorToExport.dateOfBirth,
-      scannedIdPicUrl: visitorToExport.scannedIdPicUrl,
-      isBanned: visitorToExport.isBanned,
-      notes: visitorToExport.notes,
-      generalNotes: document.getElementById("generalNotesInput").value, // Get the most recent notes from the UI
-    };
-
-    try {
-      // Pass the single, updated visitor object to the main process
-      const result =
-        await window.electronAPI.updateAndSaveCsvFile(updatedVisitorData);
-
-      if (result.success) {
-        showMessageBox("Visitor data updated in CSV successfully!", "success");
-      } else {
-        showMessageBox(`Export failed: ${result.error}`, "error");
-      }
-    } catch (error) {
-      console.error("Error during CSV export:", error);
-      showMessageBox("An error occurred during export.", "error");
+  // 2. Loop through and update each visitor in the CSV file
+  try {
+    for (const visitor of data) {
+      await window.electronAPI.updateAndSaveCsvFile(visitor);
     }
-  } else {
-    showMessageBox("Selected visitor not found.", "error");
+    showMessageBox("CSV updated successfully!", "success");
+  } catch (err) {
+    console.error("Export failed:", err);
+    showMessageBox("Export failed.", "error");
   }
 };
 
-// --- Main Initialization Logic ---
+// --- Initialization ---
+
 const initializeDb = async () => {
   try {
+    // 1. Init SQL.js first
     const SQL = await initSqlJs({
       locateFile: (file) =>
         `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}`,
     });
 
     const storedDb = localStorage.getItem("sqliteDb");
-    if (storedDb) {
-      const binaryArray = JSON.parse(storedDb);
-      db = new SQL.Database(new Uint8Array(binaryArray));
-      console.log("Database loaded from local storage.");
-    } else {
-      db = new SQL.Database();
-      console.log("New database created.");
-    }
+    db = storedDb
+      ? new SQL.Database(new Uint8Array(JSON.parse(storedDb)))
+      : new SQL.Database();
 
     db.run(`
-            CREATE TABLE IF NOT EXISTS visitors (
-                id TEXT PRIMARY KEY,
-                firstName TEXT,
-                lastName TEXT,
-                flatNumber TEXT,
-                phoneNumber TEXT,
-                dateOfBirth TEXT,
-                scannedIdPicUrl TEXT,
-                isBanned INTEGER,
-                notes TEXT,
-                generalNotes TEXT
-            );
-        `);
-    // ensures all columns exist
-    try {
-      db.exec("ALTER TABLE visitors ADD COLUMN phoneNumber TEXT;");
-      console.log("Added 'phoneNumber' column to the visitors table.");
-    } catch (e) {
-      /* Column already exists */
-    }
-    try {
-      db.exec("ALTER TABLE visitors ADD COLUMN generalNotes TEXT;");
-      console.log("Added 'generalNotes' column to the visitors table.");
-    } catch (e) {
-      /* Column already exists */
-    }
+      CREATE TABLE IF NOT EXISTS visitors (
+          id TEXT PRIMARY KEY,
+          firstName TEXT,
+          lastName TEXT,
+          flatNumber TEXT,
+          phoneNumber TEXT,
+          dateOfBirth TEXT,
+          scannedIdPicUrl TEXT,
+          isBanned INTEGER,
+          notes TEXT,
+          generalNotes TEXT
+      );
+    `);
 
     await loadVisitorsFromDb();
 
+    // 2. Open File Dialog to import CSV
     const csvData = await window.electronAPI.readCsvFile();
+
     if (csvData) {
-      handleImport(csvData);
-    } else {
-      showMessageBox("CSV import canceled or failed.", "error");
+      //  Initialize image paths only after  the file is chosen
+      await setupPaths();
+      await handleImport(csvData);
+      const visitorCount = visitorsList.length;
+      showMessageBox(
+        `Successfully loaded ${visitorCount} visitors from CSV.`,
+        "success",
+      );
     }
 
-    // --- Event Listeners ---
+    // 3. Set up UI Event Listeners
     document.getElementById("search").addEventListener("input", handleSearch);
-    document
-      .getElementById("export-btn")
-      .addEventListener("click", handleExport);
-
-    // Ban Modal Listeners
     document
       .getElementById("modalCancelButton")
       .addEventListener("click", hideBanModal);
     document
       .getElementById("modalConfirmBanButton")
-      .addEventListener("click", handleBanConfirm);
-
-    // Unban Modal Listeners
+      .addEventListener("click", () => {
+        const notes = document.getElementById("modalNotes").value;
+        updateVisitorStatus(selectedVisitorId, { isBanned: true, notes });
+        hideBanModal();
+      });
     document
       .getElementById("unbanCancelButton")
       .addEventListener("click", hideUnbanModal);
@@ -632,23 +439,59 @@ const initializeDb = async () => {
       .getElementById("saveGeneralNotesButton")
       .addEventListener("click", () => {
         const notes = document.getElementById("generalNotesInput").value;
-        updateGeneralNotes(selectedVisitorId, notes);
+        if (selectedVisitorId) {
+          db.run("UPDATE visitors SET generalNotes = ? WHERE id = ?", [
+            notes,
+            selectedVisitorId,
+          ]);
+          saveDbToLocalStorage();
+          showMessageBox("Notes saved!", "success");
+        }
       });
 
+    // assign to variables.
+    passwordInput = document.getElementById("unbanPasswordInput");
+    togglePasswordButton = document.getElementById("togglePassword");
+    eyeIcon = document.getElementById("eyeIcon");
+
+    // listener for the password and toggle
+    togglePasswordButton.addEventListener("click", () => {
+      const type =
+        passwordInput.getAttribute("type") === "password" ? "text" : "password";
+      passwordInput.setAttribute("type", type);
+
+      if (type === "text") {
+        eyeIcon.classList.add("text-green-500");
+      } else {
+        eyeIcon.classList.remove("text-green-500");
+      }
+    });
+
+    document
+      .getElementById("export-btn")
+      .addEventListener("click", handleExport);
+
+    // display the date
+    document.getElementById("current-date").textContent =
+      new Date().toLocaleDateString("en-GB", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+    // Reveal the app UI
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
   } catch (error) {
-    console.error("Error initializing SQLite database:", error);
-    document.body.innerHTML = `<div class="flex items-center justify-center min-h-screen bg-red-900 text-white"><p class="text-xl">Failed to load app. Check console for errors.</p></div>`;
+    console.error("Initialization error:", error);
   }
 };
-
-// A simple utility function to generate a unique ID
+// A universally unique identifier version4 that give each visitor a unique id
 function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    var r = (Math.random() * 16) | 0,
-      v = c == "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
 
