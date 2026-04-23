@@ -123,7 +123,7 @@ const renderSearchResults = (visitors) => {
     const li = document.createElement("li");
     li.className =
       "p-4 hover:bg-gray-100 cursor-pointer transition-colors duration-200 rounded-lg";
-    li.textContent = `${visitor.firstName} ${visitor.lastName} (Flat: ${visitor.flatNumber || "N/A"})`;
+    li.textContent = `${visitor.firstName} ${visitor.lastName}`;
     li.onclick = () => {
       selectedVisitorId = visitor.id;
       renderFoundProfile(visitor);
