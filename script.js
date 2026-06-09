@@ -1,8 +1,4 @@
-/**
- * Visitor Log Application - Client Side Logic
- * Handles SQLite DB, UI updates, and Electron communication.
- */
-
+import { randomUUID } from "crypto";
 /**
  * @typedef {Object} ElectronAPI
  * @property {Function} readCsvFile
@@ -21,7 +17,7 @@ let eyeIcon = null;
 
 const UNBAN_PASSWORD = "salvation_army2026";
 
-/** * IMPORTANT: This is updated dynamically once a CSV is selected
+/** This is updated dynamically once a CSV is selected
  * to point to the 'photos' folder next to that CSV.
  */
 let IMAGE_FOLDER = "";
@@ -317,7 +313,7 @@ const handleImport = async (csvData) => {
     db.run("BEGIN TRANSACTION;");
     for (const v of importedVisitors) {
       if (!v.firstName || !v.lastName) continue;
-      const visitorId = v.id || uuidv4();
+      const visitorId = v.id || clientSideId;
       const isBanned = v.isBanned === "true" || v.isBanned === "1" ? 1 : 0;
       db.run(
         `INSERT OR REPLACE INTO visitors 
@@ -347,7 +343,6 @@ const handleImport = async (csvData) => {
 };
 
 //handle export form db to csv
-
 const handleExport = async () => {
   // 1. Get latest data from the DB
   const res = db.exec("SELECT * FROM visitors");
@@ -487,12 +482,6 @@ const initializeDb = async () => {
     console.error("Initialization error:", error);
   }
 };
-// A universally unique identifier version4 that give each visitor a unique id
-function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
+const clientSideId = window.crypto.randomUUID();
 
 window.onload = initializeDb;

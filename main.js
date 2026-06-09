@@ -25,7 +25,6 @@ function createWindow() {
   win.loadFile("index.html");
 }
 
-// --- NEW: The Missing Link Handler ---
 // This tells the frontend where the CSV was opened from
 ipcMain.handle("get-file-dir", async () => {
   if (lastUsedFilePath) {
